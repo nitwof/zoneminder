@@ -1,0 +1,8 @@
+# Add python ppa https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "6A755776" && \
+export $(cat /etc/os-release | grep UBUNTU_CODENAME) && \
+echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${UBUNTU_CODENAME} main" > \
+  /etc/apt/sources.list.d/python.list && \
+echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${UBUNTU_CODENAME} main" >> \
+  /etc/apt/sources.list.d/python.list && \
+apt-get update && \

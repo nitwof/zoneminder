@@ -1,0 +1,9 @@
+{{ tmpl.Exec "python/ppa" }}
+# Install python
+apt-get install -y --no-install-recommends \
+  curl \
+  python${PYTHON_VERSION} \
+  python${PYTHON_VERSION}-distutils \
+&& \
+ln -s /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
+curl "https://bootstrap.pypa.io/get-pip.py" | python3 && \

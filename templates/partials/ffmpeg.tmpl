@@ -1,0 +1,215 @@
+FROM {{ .build_image }} AS ffmpeg-build
+
+ENV \
+    DEBIAN_FRONTEND="noninteractive" \
+    FFMPEG_VERSION="{{ .ffmpeg.version }}" \
+    KVAZAAR_VERSION="{{ .ffmpeg.kvazaar_version }}" \
+    FFMPEG_PATH="/ffmpeg"
+ENV \
+    LD_LIBRARY_PATH="${FFMPEG_PATH}/lib:${LD_LIBRARY_PATH}" \
+    PKG_CONFIG_PATH="${FFMPEG_PATH}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+
+RUN \
+{{ tmpl.Exec "ffmpeg/ppa" | indent 4 }}
+    # Install ffmpeg build dependencies
+    deps="\
+      autoconf \
+      automake \
+      build-essential \
+      ca-certificates \
+      ccache \
+      cmake \
+      frei0r-plugins-dev \
+      git-core \
+      ladspa-sdk \
+      libaom-dev \
+      libaribb24-dev \
+      libass-dev \
+      libbluray-dev \
+      libcaca-dev \
+      libcdio-paranoia-dev \
+      libchromaprint-dev \
+      libcodec2-dev \
+      libdrm-dev \
+      libfdk-aac-dev \
+      libfontconfig1-dev \
+      libfreetype6-dev \
+      libfribidi-dev \
+      libgme-dev \
+      libgmp-dev \
+      libgomp1 \
+      libgsm1-dev \
+      libjack-dev \
+      libleptonica-dev \
+      liblilv-dev \
+      libmodplug-dev \
+      libmp3lame-dev \
+      libmysofa-dev \
+      libnorm-dev \
+      libogg-dev \
+      libopenal-dev \
+      libopencore-amrnb-dev \
+      libopencore-amrwb-dev \
+      libopenjp2-7-dev \
+      libopenmpt-dev \
+      libopus-dev \
+      libpthread-stubs0-dev \
+      libpulse-dev \
+      librsvg2-dev \
+      librtmp-dev \
+      librubberband-dev \
+      libsdl2-dev \
+      libshine-dev \
+      libsmbclient-dev \
+      libsnappy-dev \
+      libsoxr-dev \
+      libspeex-dev \
+      libsrt-gnutls-dev \
+      libssh-dev \
+      libssl-dev \
+      libtesseract-dev \
+      libtheora-dev \
+      libtool \
+      libtwolame-dev \
+      libv4l-dev \
+      libva-dev \
+      libvdpau-dev \
+      libvidstab-dev \
+      libvo-amrwbenc-dev \
+      libvorbis-dev \
+      libvpx-dev \
+      libwavpack-dev \
+      libwebp-dev \
+      libx264-dev \
+      libx265-dev \
+      libxau-dev \
+      libxcb-shm0-dev \
+      libxcb-xfixes0-dev \
+      libxcb1-dev \
+      libxml2-dev \
+      libxvidcore-dev \
+      libzimg-dev \
+      libzmq3-dev \
+      libzvbi-dev \
+      m4 \
+      nasm \
+      pkg-config \
+      texinfo \
+      wget \
+      yasm \
+      zlib1g-dev \
+      {{ if .cuda_version -}}
+      libffmpeg-nvenc-dev \
+      nvidia-opencl-dev \
+      {{ end -}}
+    " && \
+    apt-get install -y --no-install-recommends ${deps} && \
+    # Build kvazaar https://github.com/ultravideo/kvazaar
+    mkdir -p /tmp/kvazaar && \
+    cd /tmp/kvazaar && \
+    git clone -b "v${KVAZAAR_VERSION}" --depth 1 \
+      "https://github.com/ultravideo/kvazaar.git" . && \
+    ./autogen.sh && \
+    ./configure \
+      --enable-shared \
+      --prefix=${FFMPEG_PATH} \
+    && \
+    make -j$(nproc) && \
+    make install && \
+    # Build ffmpeg https://ffmpeg.org
+    mkdir -p /tmp/ffmpeg && \
+    cd /tmp/ffmpeg && \
+    wget "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.gz" && \
+    tar -xz --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.gz && \
+    ./configure \
+      --disable-debug \
+      --disable-doc \
+      --enable-avresample \
+      --enable-chromaprint \
+      --enable-fontconfig \
+      --enable-frei0r \
+      --enable-gmp \
+      --enable-gpl \
+      --enable-ladspa \
+      --enable-libaom \
+      --enable-libaribb24 \
+      --enable-libass \
+      --enable-libbluray \
+      --enable-libcaca \
+      --enable-libcdio \
+      --enable-libcodec2 \
+      --enable-libdrm \
+      --enable-libfdk_aac \
+      --enable-libfontconfig \
+      --enable-libfreetype \
+      --enable-libfribidi \
+      --enable-libgme \
+      --enable-libgsm \
+      --enable-libjack \
+      --enable-libkvazaar \
+      --enable-libmodplug \
+      --enable-libmp3lame \
+      --enable-libmysofa \
+      --enable-libnpp \
+      --enable-libopencore-amrnb \
+      --enable-libopencore-amrwb \
+      --enable-libopenjpeg \
+      --enable-libopenmpt \
+      --enable-libopus \
+      --enable-libpulse \
+      --enable-librsvg \
+      --enable-librtmp \
+      --enable-librubberband \
+      --enable-libshine \
+      --enable-libsnappy \
+      --enable-libsoxr \
+      --enable-libspeex \
+      --enable-libsrt \
+      --enable-libssh \
+      --enable-libtesseract \
+      --enable-libtheora \
+      --enable-libtwolame \
+      --enable-libv4l2 \
+      --enable-libvidstab \
+      --enable-libvo-amrwbenc \
+      --enable-libvorbis \
+      --enable-libvpx \
+      --enable-libwavpack \
+      --enable-libwebp \
+      --enable-libx264 \
+      --enable-libx265 \
+      --enable-libxcb \
+      --enable-libxml2 \
+      --enable-libxvid \
+      --enable-libzimg \
+      --enable-libzmq \
+      --enable-libzvbi \
+      --enable-lv2 \
+      --enable-nonfree \
+      --enable-openal \
+      --enable-opencl \
+      --enable-opengl \
+      --enable-openssl \
+      --enable-postproc \
+      --enable-shared \
+      --enable-small \
+      --enable-version3 \
+      --extra-libs="-lpthread -ldl -lm" \
+      --prefix=${FFMPEG_PATH} \
+      {{ if .cuda_version -}}
+      --enable-cuda \
+      --enable-cuda-nvcc \
+      --enable-cuvid \
+      --enable-nvenc \
+      --extra-cflags="-I/usr/local/cuda/include" \
+      --extra-ldflags="-L/usr/local/cuda/lib64" \
+      {{ end -}}
+    && \
+    make -j$(nproc) && \
+    make install && \
+    # Cleanup
+    apt-get remove -y ${deps} && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    truncate -s 0 /var/log/*log
