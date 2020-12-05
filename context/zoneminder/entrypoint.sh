@@ -8,7 +8,6 @@ if [[ $(cat /etc/timezone) != "${TZ}" ]]; then
 	ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime
 	DEBIAN_FRONTEND=noninteractive dpkg-reconfigure tzdata
 fi
-sed -i "s|^;date.timezone =.*|date.timezone = ${TZ}|" /etc/php/${PHP_VERSION}/apache2/php.ini
 
 # Create zm config based on env variables
 for kv in $(env | grep "ZM_"); do
@@ -23,8 +22,10 @@ mkdir -p /var/cache/zoneminder/cache \
 
 # Set permissions on important directories
 chown -R www-data:www-data \
+  /usr/share/zoneminder \
   /var/cache/zoneminder \
   /var/log/zm \
-  /usr/share/zoneminder
+  /var/run/zm \
+  /tmp/zm
 
 exec "$@"

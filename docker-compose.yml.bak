@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+  app:
+    build:
+      # context: ./build
+      context: ./build-es
+    # image: zoneminder:1.34
+    image: zoneminder-es:1.34-6.0.6
+    shm_size: '5gb'
+    environment:
+      TZ: 'Europe/Moscow'
+    volumes:
+      - ./config/zm.conf:/etc/zm/conf.d/10-zm.conf:ro
+      - ./config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
+      - ./config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
+      - ./volumes/zm-data:/var/cache/zoneminder
+      - ./volumes/zm-logs:/var/log/zm
+      - ./volumes/zm-es-images:/var/lib/zmeventnotification/images
+      - ./volumes/zm-es-known-faces:/var/lib/zmeventnotification/known_faces
+      - ./volumes/zm-es-unknown-faces:/var/lib/zmeventnotification/unknown_faces
+      - zmes-push:/var/lib/zmeventnotification/push
+    ports:
+      - '8080:80'
+
+  db:
+    image: mariadb:10.5
+    environment:
+      TZ: 'Europe/Moscow'
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_USER: 'zoneminder'
+      MYSQL_PASSWORD: 'zoneminder'
+      MYSQL_DATABASE: 'zm'
+    volumes:
+      - db:/var/lib/mysql
+
+volumes:
+  zmes-push:
+  db:

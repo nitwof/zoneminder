@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Start rsyslog
+rsyslogd
+
+# Clear old pids if exist
+rm -rf /run/zm/*
+
 # Migrate database
 /usr/bin/zmupdate.pl
 

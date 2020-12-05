@@ -28,9 +28,8 @@ generate: $(PLATFORMS)
 
 build-zm:
 	docker build \
-		-t zoneminder:1.34-cuda9.1-cudnn7 \
-		--build-arg zm_version=1.34 \
-		-f $(DIST_DIR)/cuda9.1-cudnn7/Dockerfile \
+		-t zoneminder:1.34 \
+		-f $(DIST_DIR)/Dockerfile \
 		./context
 
 build-zm-es:
