@@ -10,4 +10,4 @@ fi
 chown -R www-data:www-data \
   /var/lib/zmeventnotification
 
-exec /entrypoint.sh "$@"
+exec /zm-entrypoint.sh "$@"

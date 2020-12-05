@@ -11,6 +11,7 @@ ENV \
 
 RUN \
     apt-get update && \
+    # Install common dependencies
     apt-get install -y --no-install-recommends \
       ca-certificates \
       gnupg \
@@ -42,7 +43,6 @@ COPY ./zm.conf /etc/zm/conf.d/10-zm.conf
 COPY ./zoneminder /usr/sbin/zoneminder
 COPY ./entrypoint.sh /entrypoint.sh
 
+VOLUME ["/var/cache/zoneminder", "/var/log/zm", "/var/run/zm", "/tmp/zm"]
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/usr/sbin/zoneminder"]
-
-VOLUME [ "/var/cache/zoneminder", "/var/log/zm", "/var/run/zm", "/tmp/zm" ]

@@ -1,13 +1,32 @@
 version: '3'
 
 services:
+  # zm:
+  #   build:
+  #     context: ./context/zoneminder
+  #     args:
+  #       zm_version: '1.34'
+  #       ffmpeg_version: 4.3-ubuntu1804
+  #   image: zoneminder:1.34
+  #   shm_size: '5gb'
+  #   environment:
+  #     TZ: 'Europe/Moscow'
+  #     ZM_DB_HOST: db
+  #     ZM_DB_NAME: zm
+  #     ZM_DB_USER: zmuser
+  #     ZM_DB_PASS: zmpass
+  #   volumes:
+  #     - ./.volumes/zm/logs:/var/log/zm
+  #     - ./.volumes/zm/data:/var/cache/zoneminder
+  #     - zm-run:/var/run/zm
+  #     - zm-tmp:/tmp/zm
   zm:
     build:
-      context: ./context/zoneminder
+      context: ./context/zoneminder/es
       args:
         zm_version: '1.34'
-        ffmpeg_version: 4.3-ubuntu1804
-    image: zoneminder:1.34
+        es_version: '6.0.6'
+    image: zoneminder:1.34-es6.0.6
     shm_size: '5gb'
     environment:
       TZ: 'Europe/Moscow'
@@ -16,12 +35,23 @@ services:
       ZM_DB_USER: zmuser
       ZM_DB_PASS: zmpass
     volumes:
+      - ./.config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
+      - ./.config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
       - ./.volumes/zm/logs:/var/log/zm
       - ./.volumes/zm/data:/var/cache/zoneminder
+      - zm-es-push:/var/lib/zmeventnotification/push
       - zm-run:/var/run/zm
       - zm-tmp:/tmp/zm
-      # - ./config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
-      # - zmeventnotification-push:/var/lib/zmeventnotification/push
+
+  mlapi:
+    build:
+      context: ./context/mlapi
+    image: mlapi:latest
+    volumes:
+      - ./.config/mlapiconfig.ini:/mlapi/mlapiconfig.ini:ro
+      - ./.volumes/mlapi/images:/mlapi/images
+      - ./.volumes/mlapi/faces:/mlapi/faces
+      - mlapi-db:/mlapi/db
 
   apache:
     build:
@@ -57,7 +87,16 @@ services:
       - ./.volumes/zm/data:/var/cache/zoneminder
       - zm-run:/var/run/zm
       - zm-tmp:/tmp/zm
-      # - ./config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
+
+  logrotate:
+    image: blacklabelops/logrotate:1.3
+    environment:
+      TZ: 'Europe/Moscow'
+      LOGS_DIRECTORIES: '/var/log/zm'
+      LOGROTATE_COMPRESSION: compress
+      LOGROTATE_SIZE: 10M
+    volumes:
+      - ./.volumes/zm/logs:/var/log/zm
 
   db:
     image: mariadb:10.5
@@ -71,7 +110,8 @@ services:
       - db:/var/lib/mysql
 
 volumes:
+  db:
+  mlapi-db:
+  zm-es-push:
   zm-run:
   zm-tmp:
-  zmeventnotification-push:
-  db:
