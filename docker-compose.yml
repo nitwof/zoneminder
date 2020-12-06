@@ -48,6 +48,7 @@ services:
   mlapi:
     build:
       context: ./context/mlapi
+      dockerfile: Dockerfile.cuda
     image: mlapi:latest
     environment:
       MLAPI_USER: zmuser
