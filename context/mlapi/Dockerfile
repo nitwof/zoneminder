@@ -2,7 +2,8 @@ FROM ubuntu:16.04 AS build-base
 
 ENV	\
     DEBIAN_FRONTEND="noninteractive" \
-    PYTHON_VERSION="3.9"
+    PYTHON_VERSION="3.8" \
+    PKG_DIR="/pkg"
 
 RUN \
     export $(cat /etc/os-release | grep UBUNTU_CODENAME) && \
@@ -26,15 +27,16 @@ RUN \
       ccache \
       cmake \
       curl \
-      git-core \
-      pkg-config \
       python${PYTHON_VERSION} \
       python${PYTHON_VERSION}-dev \
       python${PYTHON_VERSION}-distutils \
     && \
     ln -s /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
     curl "https://bootstrap.pypa.io/get-pip.py" | python3 && \
+    # Create pkg dir
+    mkdir -p ${PKG_DIR} && \
     # Cleanup
+    apt-get remove -y curl && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
@@ -50,9 +52,11 @@ RUN \
     apt-get update && \
     # Install opencv build dependencies
     deps="\
+      checkinstall \
       doxygen \
       ffmpeg \
       gfortran \
+      git-core \
       libatlas-dev \
       libavcodec-dev \
       libavformat-dev \
@@ -90,6 +94,7 @@ RUN \
       libx264-dev \
       libxine2-dev \
       libxvidcore-dev \
+      pkg-config \
       protobuf-compiler \
       unzip \
       yasm \
@@ -116,7 +121,6 @@ RUN \
       -DBUILD_opencv_python2=OFF \
       -DBUILD_opencv_python3=ON \
       -DCMAKE_BUILD_TYPE=RELEASE \
-      -DCMAKE_INSTALL_PREFIX=${OPENCV_PATH} \
       -DENABLE_CCACHE=ON \
       -DOPENCV_ENABLE_NONFREE=ON \
       -DOPENCV_EXTRA_MODULES_PATH=/tmp/opencv/contrib/modules \
@@ -134,23 +138,65 @@ RUN \
       /tmp/opencv \
     && \
     make -j$(nproc) && \
-    make install && \
+    checkinstall -y \
+      --type=debian \
+      --install=no \
+      --nodoc \
+      --pakdir=${PKG_DIR} \
+      --pkgname="opencv" \
+      --pkgversion=${OPENCV_VERSION} \
+      --requires "\
+        ffmpeg, \
+        libatlas3-base, \
+        libavcodec58, \
+        libavformat58, \
+        libavresample4, \
+        libdc1394-22, \
+        libfaac0, \
+        libgflags2v5, \
+        libgoogle-glog0v5, \
+        libgphoto2-6, \
+        libgstreamer-plugins-base1.0-0, \
+        libgstreamer1.0-0, \
+        libhdf5-10, \
+        libjpeg8, \
+        liblapack3, \
+        liblapacke, \
+        libmp3lame0, \
+        libopenblas-base, \
+        libopencore-amrnb0, \
+        libopencore-amrwb0, \
+        libopenexr22, \
+        libopenjp2-7, \
+        libpng12-0, \
+        libprotobuf9v5, \
+        libswscale5, \
+        libtbb2, \
+        libtesseract3, \
+        libtheora0, \
+        libtiff5, \
+        libv4l-0, \
+        libvorbis0a, \
+        libvtk6.2, \
+        libwebp5, \
+        libx264-155, \
+        libxine2, \
+        libxvidcore4, \
+        zlib1g \
+      " \
+    && \
     # Cleanup
     apt-get remove -y ${deps} && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
     truncate -s 0 /var/log/*log
 
-FROM build-base AS face_recognition-build
-
-ENV \
-    FACE_RECOGNITION_VERSION="1.3.0" \
-    FACE_RECOGNITION_PATH="/face_recognition"
+FROM build-base AS dlib-build
 
 RUN \
-    apt-get update -qq && \
-    # Install face_recognition build dependencies
+    apt-get update && \
+    # Install dlib build dependencies
     deps="\
       libblas-dev \
       libgif-dev \
@@ -162,18 +208,12 @@ RUN \
     " && \
     apt-get install -y --no-install-recommends ${deps} && \
     # Build face_recognition https://github.com/ageitgey/face_recognition
-    mkdir -p /tmp/face_recognition && \
-    python3 -m pip install --no-cache-dir --root /tmp/face_recognition -v \
-      numpy \
-      mkl_fft \
-      face_recognition==${FACE_RECOGNITION_VERSION} \
-    && \
-    mv /tmp/face_recognition/usr/local ${FACE_RECOGNITION_PATH} && \
+    python3 -m pip wheel --use-pep517 --wheel-dir ${PKG_DIR} -v dlib && \
     # Cleanup
     apt-get remove -y ${deps} && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
     truncate -s 0 /var/log/*log
 
 FROM ubuntu:16.04
@@ -182,14 +222,13 @@ ARG DEBIAN_FRONTEND="noninteractive"
 
 ENV \
     OPENCV_VERSION="4.5.0" \
-    FACE_RECOGNITION_VERSION="1.3.0" \
-    PYTHON_VERSION="3.9" \
+    PYTHON_VERSION="3.8" \
     APP_DIR="/mlapi"
 
 # Copy opencv files
-COPY --from=opencv-build /opencv/ /usr/local/
+COPY --from=opencv-build /pkg/ /tmp/opencv/
 # Copy face_recognition files
-COPY --from=face_recognition-build /face_recognition/ /usr/local/
+COPY --from=dlib-build /pkg/ /tmp/dlib/
 
 RUN \
     export $(cat /etc/os-release | grep UBUNTU_CODENAME) && \
@@ -206,53 +245,18 @@ RUN \
     echo "deb-src http://ppa.launchpad.net/jonathonf/ffmpeg-4/ubuntu ${UBUNTU_CODENAME} main" >> \
       /etc/apt/sources.list.d/ffmpeg.list && \
     apt-get update && \
-    # Install python
-    apt-get install -y --no-install-recommends \
-      python${PYTHON_VERSION} \
-      python${PYTHON_VERSION}-distutils \
-    && \
-    ln -s /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
-    curl "https://bootstrap.pypa.io/get-pip.py" | python3 && \
     # Install dependenceis
     apt-get install -y --no-install-recommends \
-      # opencv dependencies
-      libatlas3-base \
-      libavcodec58 \
-      libavformat58 \
-      libavresample4 \
-      libdc1394-22 \
-      libfaac0 \
-      libgflags2v5 \
-      libgoogle-glog0v5 \
-      libgphoto2-6 \
-      libgstreamer-plugins-base1.0-0 \
-      libgstreamer1.0-0 \
-      libhdf5-10 \
-      libjpeg8 \
-      liblapack3 \
-      liblapacke \
-      libmp3lame0 \
-      libopenblas-base \
-      libopencore-amrnb0 \
-      libopencore-amrwb0 \
-      libopenexr22 \
-      libopenjp2-7 \
-      libpng12-0 \
-      libprotobuf9v5 \
-      libswscale5 \
-      libtbb2 \
-      libtesseract3 \
-      libtheora0 \
-      libtiff5 \
-      libv4l-0 \
-      libvorbis0a \
-      libvtk6.2 \
-      libwebp5 \
-      libx264-155 \
-      libxine2 \
-      libxvidcore4 \
-      zlib1g \
-      # face_recognition dependencies
+      build-essential \
+      ca-certificates \
+      curl \
+      git-core \
+      wget \
+      # python
+      python${PYTHON_VERSION} \
+      python${PYTHON_VERSION}-dev \
+      python${PYTHON_VERSION}-distutils \
+      # dlib dependencies
       libblas3 \
       libgif7 \
       libjpeg8 \
@@ -260,29 +264,38 @@ RUN \
       liblapacke \
       libopenblas-base \
       libpng12-0 \
-      # zmeventnotification dependencies
-      git-core \
-      wget \
     && \
-    git clone --depth 1 "https://github.com/pliablepixels/mlapi" /mlapi && \
-    python3 -m pip install -r requirements.txt && \
-    /mlapi/get_models.sh && \
-    mkdir -p \
-      ${APP_DIR}/faces/known \
-      ${APP_DIR}/faces/unknown \
-    && \
+    ln -s /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
+    curl "https://bootstrap.pypa.io/get-pip.py" | python3 && \
+    # Install opencv
+    apt-get install -y /tmp/opencv/*.deb && \
+    # Install dlib
+    python3 -m pip install /tmp/dlib/*.whl && \
+    # Install mlapi https://github.com/pliablepixels/mlapi
+    git clone --depth 1 \
+      "https://github.com/pliablepixels/mlapi" ${APP_DIR} && \
+    cd ${APP_DIR} && \
+    python3 -m pip install -r ./requirements.txt && \
+    ./get_models.sh && \
     # Cleanup
     apt-get remove -y \
+      build-essential \
+      curl \
       git-core \
+      python${PYTHON_VERSION}-dev \
       wget \
     && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
     truncate -s 0 /var/log/*log
 
-WORKDIR ${APP_DIR}
-CMD ["python3", "./mlapi.py", "-c", "./mlapiconfig.ini"]
+COPY ./init_user.py ${APP_DIR}/
+COPY ./entrypoint.sh /entrypoint.sh
 
-VOLUME ["${APP_DIR}/images", "${APP_DIR}/db", "${APP_DIR}/faces"]
+WORKDIR ${APP_DIR}
+
+VOLUME [ "${APP_DIR}/images", "${APP_DIR}/known_faces", "${APP_DIR}/unknown_faces", "${APP_DIR}/db" ]
 EXPOSE 5000
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "python3", "./mlapi.py", "-c", "./mlapiconfig.ini" ]

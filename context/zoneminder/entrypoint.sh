@@ -10,6 +10,7 @@ if [[ $(cat /etc/timezone) != "${TZ}" ]]; then
 fi
 
 # Create zm config based on env variables
+rm -f /etc/zm/conf.d/20-zm.conf
 for kv in $(env | grep "ZM_"); do
   echo $kv >> /etc/zm/conf.d/20-zm.conf
 done

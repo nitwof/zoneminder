@@ -55,12 +55,12 @@ RUN \
     && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* || true && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache || true && \
     truncate -s 0 /var/log/*log
 
 COPY ./entrypoint.sh /entrypoint.sh
 
-VOLUME ["/var/lib/zmeventnotification/push"]
+VOLUME [ "/var/lib/zmeventnotification/push" ]
 EXPOSE 9000
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/sbin/zoneminder"]
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "/usr/sbin/zoneminder" ]

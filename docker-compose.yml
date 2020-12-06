@@ -9,6 +9,7 @@ services:
   #       ffmpeg_version: 4.3-ubuntu1804
   #   image: zoneminder:1.34
   #   shm_size: '5gb'
+  #   ipc: shareable
   #   environment:
   #     TZ: 'Europe/Moscow'
   #     ZM_DB_HOST: db
@@ -28,6 +29,7 @@ services:
         es_version: '6.0.6'
     image: zoneminder:1.34-es6.0.6
     shm_size: '5gb'
+    ipc: shareable
     environment:
       TZ: 'Europe/Moscow'
       ZM_DB_HOST: db
@@ -47,10 +49,14 @@ services:
     build:
       context: ./context/mlapi
     image: mlapi:latest
+    environment:
+      MLAPI_USER: zmuser
+      MLAPI_PASSWORD: zmpass
     volumes:
       - ./.config/mlapiconfig.ini:/mlapi/mlapiconfig.ini:ro
       - ./.volumes/mlapi/images:/mlapi/images
-      - ./.volumes/mlapi/faces:/mlapi/faces
+      - ./.volumes/mlapi/known_faces:/mlapi/known_faces
+      - ./.volumes/mlapi/unknown_faces:/mlapi/unknown_faces
       - mlapi-db:/mlapi/db
 
   apache:
@@ -59,6 +65,7 @@ services:
       args:
         zm_version: '1.34'
     image: zoneminder:1.34-apache
+    ipc: service:zm
     environment:
       TZ: 'Europe/Moscow'
       ZM_DB_HOST: db

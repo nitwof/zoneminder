@@ -31,5 +31,5 @@ COPY ./entrypoint.sh /entrypoint.sh
 
 STOPSIGNAL SIGWINCH
 EXPOSE 80
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["apache2ctl", "-DFOREGROUND"]
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "apache2ctl", "-DFOREGROUND" ]
