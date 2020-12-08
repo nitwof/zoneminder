@@ -34,7 +34,7 @@ services:
       - shmem
       - db
 
-  zmeventnotification:
+  zmen:
     build:
       context: ./context/zmeventnotification
       dockerfile: Dockerfile
@@ -52,8 +52,6 @@ services:
     volumes:
       - ./.config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
       - ./.config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
-      # - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
-      # - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
       - ./.volumes/zm/logs:/var/log/zm
       - ./.volumes/zmen/images:/var/lib/zmeventnotification/images
       - ./.volumes/zmen/known_faces:/var/lib/zmeventnotification/known_faces

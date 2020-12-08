@@ -11,7 +11,13 @@ fi
 # Create zm config based on env variables
 rm -f /etc/zm/conf.d/20-zm.conf
 for kv in $(env | grep "ZM_"); do
-  echo $kv >> /etc/zm/conf.d/20-zm.conf
+  echo "${kv}" >> /etc/zm/conf.d/20-zm.conf
+done
+
+# Create zmen config (secrets.ini) based on env variables
+rm -f /etc/zm/secrets.ini
+for kv in $(env | grep "ZMEN_"); do
+  echo "${kv/ZMEN_}" >> /etc/zm/secrets.ini
 done
 
 # Init tokens.txt if it does not exist
