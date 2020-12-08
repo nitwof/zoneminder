@@ -1,35 +1,48 @@
 version: '3'
 
 services:
-  # zm:
-  #   build:
-  #     context: ./context/zoneminder
-  #     args:
-  #       zm_version: '1.34'
-  #       ffmpeg_version: 4.3-ubuntu1804
-  #   image: zoneminder:1.34
-  #   shm_size: '5gb'
-  #   ipc: shareable
-  #   environment:
-  #     TZ: 'Europe/Moscow'
-  #     ZM_DB_HOST: db
-  #     ZM_DB_NAME: zm
-  #     ZM_DB_USER: zmuser
-  #     ZM_DB_PASS: zmpass
-  #   volumes:
-  #     - ./.volumes/zm/logs:/var/log/zm
-  #     - ./.volumes/zm/data:/var/cache/zoneminder
-  #     - zm-run:/var/run/zm
-  #     - zm-tmp:/tmp/zm
+  mlbase:
+    build:
+      context: ./context/mlbase
+      dockerfile: Dockerfile
+      args:
+        python_version: '3.8'
+        opencv_version: '4.5.0'
+        dlib_version: '19.21.1'
+    image: mlbase
+
   zm:
     build:
-      context: ./context/zoneminder/es
+      context: ./context/zoneminder
       args:
+        version: '1.34'
+        ffmpeg_version: 4.3-ubuntu1804
+    image: zoneminder:1.34
+    ipc: service:shmem
+    environment:
+      TZ: 'Europe/Moscow'
+      ZM_DB_HOST: db
+      ZM_DB_NAME: zm
+      ZM_DB_USER: zmuser
+      ZM_DB_PASS: zmpass
+    volumes:
+      - ./.volumes/zm/logs:/var/log/zm
+      - ./.volumes/zm/data:/var/cache/zoneminder
+      - zm-run:/var/run/zm
+      - zm-tmp:/tmp/zm
+    depends_on:
+      - shmem
+      - db
+
+  zmeventnotification:
+    build:
+      context: ./context/zmeventnotification
+      dockerfile: Dockerfile
+      args:
+        version: '6.0.6'
         zm_version: '1.34'
-        es_version: '6.0.6'
-    image: zoneminder:1.34-es6.0.6
-    shm_size: '5gb'
-    ipc: shareable
+    image: zmeventnotification:6.0.6
+    ipc: service:shmem
     environment:
       TZ: 'Europe/Moscow'
       ZM_DB_HOST: db
@@ -39,16 +52,23 @@ services:
     volumes:
       - ./.config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
       - ./.config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
+      # - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
+      # - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
       - ./.volumes/zm/logs:/var/log/zm
-      - ./.volumes/zm/data:/var/cache/zoneminder
+      - ./.volumes/zmen/images:/var/lib/zmeventnotification/images
+      - ./.volumes/zmen/known_faces:/var/lib/zmeventnotification/known_faces
+      - ./.volumes/zmen/unknown_faces:/var/lib/zmeventnotification/unknown_faces
       - zm-es-push:/var/lib/zmeventnotification/push
-      - zm-run:/var/run/zm
-      - zm-tmp:/tmp/zm
+    depends_on:
+      - shmem
+      - db
 
   mlapi:
     build:
       context: ./context/mlapi
-      dockerfile: Dockerfile.cuda
+      dockerfile: Dockerfile
+      args:
+        version: 'master'
     image: mlapi:latest
     environment:
       MLAPI_USER: zmuser
@@ -66,7 +86,7 @@ services:
       args:
         zm_version: '1.34'
     image: zoneminder:1.34-apache
-    ipc: service:zm
+    ipc: service:shmem
     environment:
       TZ: 'Europe/Moscow'
       ZM_DB_HOST: db
@@ -80,6 +100,9 @@ services:
       - zm-tmp:/tmp/zm
     ports:
       - '8080:80'
+    depends_on:
+      - shmem
+      - db
 
   zmaudit:
     image: zoneminder:1.34
@@ -95,6 +118,15 @@ services:
       - ./.volumes/zm/data:/var/cache/zoneminder
       - zm-run:/var/run/zm
       - zm-tmp:/tmp/zm
+    depends_on:
+      - shmem
+      - db
+
+  shmem:
+    image: alpine:3.12
+    command: sleep infinity
+    shm_size: '5gb'
+    ipc: shareable
 
   logrotate:
     image: blacklabelops/logrotate:1.3

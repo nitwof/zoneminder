@@ -1,11 +1,11 @@
 ARG ffmpeg_version
 FROM jrottenberg/ffmpeg:${ffmpeg_version}
 
-ARG zm_version
+ARG version
 ARG DEBIAN_FRONTEND="noninteractive"
 
 ENV \
-    ZM_VERSION="${zm_version}" \
+    ZM_VERSION="${version}" \
     PHP_VERSION="7.2" \
     TZ="Etc/UTC"
 

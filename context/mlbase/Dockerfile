@@ -1,24 +1,13 @@
-FROM nvidia/cuda:9.1-cudnn7-devel-ubuntu16.04 AS build-base
+FROM ubuntu:18.04 AS build-base
+
+ARG python_version
 
 ENV	\
     DEBIAN_FRONTEND="noninteractive" \
-    PYTHON_VERSION="3.8" \
+    PYTHON_VERSION="${python_version}" \
     PKG_DIR="/pkg"
 
 RUN \
-    export $(cat /etc/os-release | grep UBUNTU_CODENAME) && \
-    # Add python ppa https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "6A755776" && \
-    echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${UBUNTU_CODENAME} main" > \
-      /etc/apt/sources.list.d/python.list && \
-    echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${UBUNTU_CODENAME} main" >> \
-      /etc/apt/sources.list.d/python.list && \
-    # Add ffmpeg ppa https://launchpad.net/~jonathonf/+archive/ubuntu/ffmpeg-4
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "F06FC659" && \
-    echo "deb http://ppa.launchpad.net/jonathonf/ffmpeg-4/ubuntu ${UBUNTU_CODENAME} main" > \
-      /etc/apt/sources.list.d/ffmpeg.list && \
-    echo "deb-src http://ppa.launchpad.net/jonathonf/ffmpeg-4/ubuntu ${UBUNTU_CODENAME} main" >> \
-      /etc/apt/sources.list.d/ffmpeg.list && \
     apt-get update && \
     # Install base build dependencies
     apt-get install -y --no-install-recommends \
@@ -31,6 +20,7 @@ RUN \
       python${PYTHON_VERSION}-dev \
       python${PYTHON_VERSION}-distutils \
     && \
+    rm -f /usr/bin/python3 && \
     ln -s /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
     curl "https://bootstrap.pypa.io/get-pip.py" | python3 && \
     # Create pkg dir
@@ -44,8 +34,10 @@ RUN \
 
 FROM build-base AS opencv-build
 
+ARG opencv_version
+
 ENV	\
-    OPENCV_VERSION="4.1.2" \
+    OPENCV_VERSION="${opencv_version}" \
     OPENCV_PATH="/opencv"
 
 RUN \
@@ -57,7 +49,7 @@ RUN \
       ffmpeg \
       gfortran \
       git-core \
-      libatlas-dev \
+      libatlas-base-dev \
       libavcodec-dev \
       libavformat-dev \
       libavresample-dev \
@@ -102,9 +94,9 @@ RUN \
     " && \
     apt-get install -y --no-install-recommends ${deps} && \
     python3 -m pip install numpy && \
-    # Workaround for openblas lapacke
-    # See: https://github.com/opencv/opencv/issues/9953
-    ln -s /usr/include/lapacke.h /usr/include/openblas/ && \
+    # # Workaround for openblas lapacke
+    # # See: https://github.com/opencv/opencv/issues/9953
+    # ln -s /usr/include/lapacke.h /usr/include/openblas/ && \
     # Build opencv https://opencv.org
     git clone -b "${OPENCV_VERSION}" --depth 1 \
       "https://github.com/opencv/opencv.git" /tmp/opencv && \
@@ -124,13 +116,13 @@ RUN \
       -DENABLE_CCACHE=ON \
       -DOPENCV_ENABLE_NONFREE=ON \
       -DOPENCV_EXTRA_MODULES_PATH=/tmp/opencv/contrib/modules \
-      -DWITH_CUDA=ON \
-      -DWITH_CUBLAS=ON \
-      -DWITH_CUFFT=ON \
-      -DWITH_NVCUVID=ON \
-      -DCUDA_FAST_MATH=1 \
-      -DENABLE_FAST_MATH=ON \
-      -DWITH_CUDNN=ON \
+      # -DWITH_CUDA=ON \
+      # -DWITH_CUBLAS=ON \
+      # -DWITH_CUFFT=ON \
+      # -DWITH_NVCUVID=ON \
+      # -DCUDA_FAST_MATH=1 \
+      # -DENABLE_FAST_MATH=ON \
+      # -DWITH_CUDNN=ON \
       -DWITH_FFMPEG=ON \
       -DWITH_OPENEXR=ON \
       -DWITH_OPENMP=ON \
@@ -145,45 +137,6 @@ RUN \
       --pakdir=${PKG_DIR} \
       --pkgname="opencv" \
       --pkgversion=${OPENCV_VERSION} \
-      --requires "\
-        ffmpeg, \
-        libatlas3-base, \
-        libavcodec58, \
-        libavformat58, \
-        libavresample4, \
-        libdc1394-22, \
-        libfaac0, \
-        libgflags2v5, \
-        libgoogle-glog0v5, \
-        libgphoto2-6, \
-        libgstreamer-plugins-base1.0-0, \
-        libgstreamer1.0-0, \
-        libhdf5-10, \
-        libjpeg8, \
-        liblapack3, \
-        liblapacke, \
-        libmp3lame0, \
-        libopenblas-base, \
-        libopencore-amrnb0, \
-        libopencore-amrwb0, \
-        libopenexr22, \
-        libopenjp2-7, \
-        libpng12-0, \
-        libprotobuf9v5, \
-        libswscale5, \
-        libtbb2, \
-        libtesseract3, \
-        libtheora0, \
-        libtiff5, \
-        libv4l-0, \
-        libvorbis0a, \
-        libvtk6.2, \
-        libwebp5, \
-        libx264-155, \
-        libxine2, \
-        libxvidcore4, \
-        zlib1g \
-      " \
     && \
     # Cleanup
     apt-get remove -y ${deps} && \
@@ -193,6 +146,11 @@ RUN \
     truncate -s 0 /var/log/*log
 
 FROM build-base AS dlib-build
+
+ARG dlib_version
+
+ENV \
+    DLIB_VERSION="${dlib_version}"
 
 RUN \
     apt-get update && \
@@ -208,7 +166,9 @@ RUN \
     " && \
     apt-get install -y --no-install-recommends ${deps} && \
     # Build face_recognition https://github.com/ageitgey/face_recognition
-    python3 -m pip wheel --use-pep517 --wheel-dir ${PKG_DIR} -v dlib && \
+    python3 -m pip wheel --use-pep517 --wheel-dir ${PKG_DIR} -v \
+      dlib==${DLIB_VERSION} \
+    && \
     # Cleanup
     apt-get remove -y ${deps} && \
     apt-get autoremove -y && \
@@ -216,46 +176,70 @@ RUN \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
     truncate -s 0 /var/log/*log
 
-FROM nvidia/cuda:9.1-cudnn7-runtime-ubuntu16.04
-
-ARG DEBIAN_FRONTEND="noninteractive"
-
-ENV \
-    OPENCV_VERSION="4.1.2" \
-    PYTHON_VERSION="3.8" \
-    APP_DIR="/mlapi"
+FROM ubuntu:18.04
 
 # Copy opencv files
 COPY --from=opencv-build /pkg/ /tmp/opencv/
 # Copy face_recognition files
 COPY --from=dlib-build /pkg/ /tmp/dlib/
 
+ARG opencv_version
+ARG dlib_version
+ARG python_version
+ARG DEBIAN_FRONTEND="noninteractive"
+
+ENV \
+    OPENCV_VERSION="${opencv_version}" \
+    DLIB_VERSION="${dlib_version}" \
+    PYTHON_VERSION="${python_version}"
+
 RUN \
-    export $(cat /etc/os-release | grep UBUNTU_CODENAME) && \
-    # Add python ppa https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "6A755776" && \
-    echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${UBUNTU_CODENAME} main" > \
-      /etc/apt/sources.list.d/python.list && \
-    echo "deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${UBUNTU_CODENAME} main" >> \
-      /etc/apt/sources.list.d/python.list && \
-    # Add ffmpeg ppa https://launchpad.net/~jonathonf/+archive/ubuntu/ffmpeg-4
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "F06FC659" && \
-    echo "deb http://ppa.launchpad.net/jonathonf/ffmpeg-4/ubuntu ${UBUNTU_CODENAME} main" > \
-      /etc/apt/sources.list.d/ffmpeg.list && \
-    echo "deb-src http://ppa.launchpad.net/jonathonf/ffmpeg-4/ubuntu ${UBUNTU_CODENAME} main" >> \
-      /etc/apt/sources.list.d/ffmpeg.list && \
     apt-get update && \
-    # Install dependenceis
+    # Install base dependencies
     apt-get install -y --no-install-recommends \
-      build-essential \
       ca-certificates \
       curl \
-      git-core \
-      wget \
-      # python
+      gnupg \
       python${PYTHON_VERSION} \
       python${PYTHON_VERSION}-dev \
       python${PYTHON_VERSION}-distutils \
+      # opencv dependencies
+      libatlas3-base \
+      libavcodec57 \
+      libavformat57 \
+      libavresample3 \
+      libdc1394-22 \
+      libfaac0 \
+      libgflags2.2 \
+      libgoogle-glog0v5 \
+      libgphoto2-6 \
+      libgstreamer-plugins-base1.0-0 \
+      libgstreamer1.0-0 \
+      libhdf5-100 \
+      libjpeg8 \
+      liblapack3 \
+      liblapacke \
+      libmp3lame0 \
+      libopenblas-base \
+      libopencore-amrnb0 \
+      libopencore-amrwb0 \
+      libopenexr22 \
+      libopenjp2-7 \
+      libpng16-16 \
+      libprotobuf10 \
+      libswscale4 \
+      libtbb2 \
+      libtesseract4 \
+      libtheora0 \
+      libtiff5 \
+      libv4l-0 \
+      libvorbis0a \
+      libvtk6.3 \
+      libwebp6 \
+      libx264-152 \
+      libxine2 \
+      libxvidcore4 \
+      zlib1g \
       # dlib dependencies
       libblas3 \
       libgif7 \
@@ -263,39 +247,22 @@ RUN \
       liblapack3 \
       liblapacke \
       libopenblas-base \
-      libpng12-0 \
+      libpng16-16 \
     && \
+    rm -f /usr/bin/python3 && \
     ln -s /usr/bin/python${PYTHON_VERSION} /usr/bin/python3 && \
     curl "https://bootstrap.pypa.io/get-pip.py" | python3 && \
     # Install opencv
     apt-get install -y /tmp/opencv/*.deb && \
     # Install dlib
-    python3 -m pip install /tmp/dlib/*.whl && \
-    # Install mlapi https://github.com/pliablepixels/mlapi
-    git clone --depth 1 \
-      "https://github.com/pliablepixels/mlapi" ${APP_DIR} && \
-    cd ${APP_DIR} && \
-    python3 -m pip install -r ./requirements.txt && \
-    ./get_models.sh && \
-    # Cleanup
-    apt-get remove -y \
-      build-essential \
-      curl \
-      git-core \
-      python${PYTHON_VERSION}-dev \
-      wget \
+    python3 -m pip install --no-cache-dir /tmp/dlib/*.whl && \
+    # Install python libs
+    python3 -m pip install --no-cache-dir \
+      numpy \
+      face_recognition \
     && \
+    # Cleanup
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
     truncate -s 0 /var/log/*log
-
-COPY ./init_user.py ${APP_DIR}/
-COPY ./entrypoint.sh /entrypoint.sh
-
-WORKDIR ${APP_DIR}
-
-VOLUME [ "${APP_DIR}/images", "${APP_DIR}/known_faces", "${APP_DIR}/unknown_faces", "${APP_DIR}/db" ]
-EXPOSE 5000
-ENTRYPOINT [ "/entrypoint.sh" ]
-CMD [ "python3", "./mlapi.py", "-c", "./mlapiconfig.ini" ]
