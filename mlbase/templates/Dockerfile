@@ -35,7 +35,6 @@ RUN \
     # Create pkg dir
     mkdir -p ${PKG_DIR} && \
     # Cleanup
-    apt-get remove -y curl && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
@@ -45,14 +44,10 @@ FROM build-base AS opencv-build
 
 ARG opencv_version
 
-ENV	\
-    OPENCV_VERSION="${opencv_version}" \
-    OPENCV_PATH="/opencv"
-
 RUN \
     apt-get update && \
     # Install opencv build dependencies
-    deps="\
+    apt-get install -y --no-install-recommends \
       checkinstall \
       doxygen \
       ffmpeg \
@@ -100,19 +95,27 @@ RUN \
       unzip \
       yasm \
       zlib1g-dev \
-    " && \
-    apt-get install -y --no-install-recommends ${deps} && \
+    && \
     python3 -m pip install numpy && \
-    # # Workaround for openblas lapacke
-    # # See: https://github.com/opencv/opencv/issues/9953
-    # ln -s /usr/include/lapacke.h /usr/include/openblas/ && \
-    # Build opencv https://opencv.org
+    # Cleanup
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
+    truncate -s 0 /var/log/*log
+
+ENV	OPENCV_VERSION="${opencv_version}"
+
+RUN \
+    # Download opencv https://opencv.org
     git clone -b "${OPENCV_VERSION}" --depth 1 \
       "https://github.com/opencv/opencv.git" /tmp/opencv && \
     git clone -b "${OPENCV_VERSION}" --depth 1 \
-      "https://github.com/opencv/opencv_contrib.git" /tmp/opencv/contrib && \
-    mkdir -p /tmp/opencv/build && \
-    cd /tmp/opencv/build && \
+      "https://github.com/opencv/opencv_contrib.git" /tmp/opencv/contrib
+
+WORKDIR /tmp/opencv/build
+
+RUN \
+    # Configure opencv https://opencv.org
     cmake \
       -BUILD_SHARED_LIBS=ON \
       -DBUILD_EXAMPLES=OFF \
@@ -138,35 +141,30 @@ RUN \
       -DWITH_OPENEXR=ON \
       -DWITH_OPENMP=ON \
       -DWITH_TBB=ON \
-      /tmp/opencv \
-    && \
-    make -j$(nproc) && \
+      /tmp/opencv
+
+RUN \
+    # Build opencv https://opencv.org
+    make -j$(nproc)
+
+RUN \
+    # Build opencv package
     checkinstall -y \
       --type=debian \
       --install=no \
       --nodoc \
       --pakdir=${PKG_DIR} \
       --pkgname="opencv" \
-      --pkgversion=${OPENCV_VERSION} \
-    && \
-    # Cleanup
-    apt-get remove -y ${deps} && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
-    truncate -s 0 /var/log/*log
+      --pkgversion=${OPENCV_VERSION}
 
 FROM build-base AS dlib-build
 
 ARG dlib_version
 
-ENV \
-    DLIB_VERSION="${dlib_version}"
-
 RUN \
     apt-get update && \
     # Install dlib build dependencies
-    deps="\
+    apt-get install -y --no-install-recommends \
       libblas-dev \
       libgif-dev \
       libjpeg-dev \
@@ -174,29 +172,23 @@ RUN \
       liblapacke-dev \
       libopenblas-dev \
       libpng-dev \
-    " && \
-    apt-get install -y --no-install-recommends ${deps} && \
-    # Build face_recognition https://github.com/ageitgey/face_recognition
-    python3 -m pip wheel --use-pep517 --wheel-dir ${PKG_DIR} -v \
-      dlib==${DLIB_VERSION} \
     && \
     # Cleanup
-    apt-get remove -y ${deps} && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache && \
     truncate -s 0 /var/log/*log
+
+RUN \
+    # Build dlib https://github.com/davisking/dlib
+    python3 -m pip wheel --use-pep517 --wheel-dir ${PKG_DIR} -v \
+      dlib==${dlib_version}
 
 {{ if .cuda -}}
 FROM nvidia/cuda:{{ .cuda }}-cudnn{{ .cudnn }}-runtime-ubuntu18.04
 {{- else -}}
 FROM ubuntu:18.04
 {{- end }}
-
-# Copy opencv files
-COPY --from=opencv-build /pkg/ /tmp/opencv/
-# Copy face_recognition files
-COPY --from=dlib-build /pkg/ /tmp/dlib/
 
 ARG opencv_version
 ARG dlib_version
@@ -208,6 +200,11 @@ ENV \
     DLIB_VERSION="${dlib_version}" \
     PYTHON_VERSION="${python_version}"
 
+# Copy opencv files
+COPY --from=opencv-build /pkg/ /tmp/opencv/
+# Copy face_recognition files
+COPY --from=dlib-build /pkg/ /tmp/dlib/
+
 RUN \
     apt-get update && \
     # Install base dependencies
@@ -216,7 +213,6 @@ RUN \
       curl \
       gnupg \
       python${PYTHON_VERSION} \
-      python${PYTHON_VERSION}-dev \
       python${PYTHON_VERSION}-distutils \
       # opencv dependencies
       libatlas3-base \

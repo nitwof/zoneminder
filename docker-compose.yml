@@ -9,7 +9,7 @@ services:
         python_version: '3.8'
         opencv_version: '4.5.0'
         dlib_version: '19.21.1'
-    image: mlbase
+    image: nitwof/mlbase
 
   zm:
     build:
@@ -17,7 +17,7 @@ services:
       args:
         version: '1.34'
         ffmpeg_version: 4.3-ubuntu1804
-    image: zoneminder:1.34
+    image: nitwof/zoneminder:1.34
     ipc: service:shmem
     environment:
       TZ: 'Europe/Moscow'
@@ -42,7 +42,7 @@ services:
         version: '6.0.6'
         zm_version: '1.34'
         mlbase_version: 'cpu'
-    image: zmeventnotification:6.0.6
+    image: nitwof/zmeventnotification:6.0.6
     ipc: service:shmem
     environment:
       TZ: 'Europe/Moscow'
@@ -72,7 +72,7 @@ services:
         version: '6.0.6'
         zm_version: '1.34'
         python_version: '3.8'
-    image: zmeventnotification:6.0.6-mlapi
+    image: nitwof/zmeventnotification:6.0.6-mlapi
     ipc: service:shmem
     environment:
       TZ: 'Europe/Moscow'
@@ -97,7 +97,7 @@ services:
       args:
         version: 'master'
         mlbase_version: 'cpu'
-    image: mlapi:latest
+    image: nitwof/mlapi:latest
     environment:
       MLAPI_USER: zmuser
       MLAPI_PASSWORD: zmpass
@@ -113,7 +113,7 @@ services:
       context: ./zmweb
       args:
         zm_version: '1.34'
-    image: zoneminder:1.34-apache
+    image: nitwof/zoneminder:1.34-apache
     ipc: service:shmem
     environment:
       TZ: 'Europe/Moscow'
@@ -133,7 +133,7 @@ services:
       - db
 
   zmaudit:
-    image: zoneminder:1.34
+    image: nitwof/zoneminder:1.34
     command: '/usr/bin/zmaudit.pl -c'
     environment:
       TZ: 'Europe/Moscow'
