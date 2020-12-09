@@ -3,7 +3,7 @@ version: '3'
 services:
   mlbase:
     build:
-      context: ./context/mlbase
+      context: ./mlbase
       dockerfile: Dockerfile
       args:
         python_version: '3.8'
@@ -13,7 +13,7 @@ services:
 
   zm:
     build:
-      context: ./context/zoneminder
+      context: ./zoneminder
       args:
         version: '1.34'
         ffmpeg_version: 4.3-ubuntu1804
@@ -36,7 +36,7 @@ services:
 
   zmen:
     build:
-      context: ./context/zmeventnotification
+      context: ./zmeventnotification
       dockerfile: Dockerfile
       args:
         version: '6.0.6'
@@ -51,22 +51,48 @@ services:
       ZM_DB_USER: zmuser
       ZM_DB_PASS: zmpass
     volumes:
-      - ./.config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
-      - ./.config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
-      # - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
-      # - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
+      # - ./.config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
+      # - ./.config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
+      - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
+      - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
       - ./.volumes/zm/logs:/var/log/zm
       - ./.volumes/zmen/images:/var/lib/zmeventnotification/images
       - ./.volumes/zmen/known_faces:/var/lib/zmeventnotification/known_faces
       - ./.volumes/zmen/unknown_faces:/var/lib/zmeventnotification/unknown_faces
-      - zm-es-push:/var/lib/zmeventnotification/push
+      - zmen-push:/var/lib/zmeventnotification/push
+    depends_on:
+      - shmem
+      - db
+
+  zmen-mlapi:
+    build:
+      context: ./zmeventnotification
+      dockerfile: mlapi/Dockerfile
+      args:
+        version: '6.0.6'
+        zm_version: '1.34'
+        python_version: '3.8'
+    image: zmeventnotification:6.0.6-mlapi
+    ipc: service:shmem
+    environment:
+      TZ: 'Europe/Moscow'
+      ZM_DB_HOST: db
+      ZM_DB_NAME: zm
+      ZM_DB_USER: zmuser
+      ZM_DB_PASS: zmpass
+    volumes:
+      - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
+      - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
+      - ./.volumes/zm/logs:/var/log/zm
+      - ./.volumes/zmen/images:/var/lib/zmeventnotification/images
+      - zmen-push:/var/lib/zmeventnotification/push
     depends_on:
       - shmem
       - db
 
   mlapi:
     build:
-      context: ./context/mlapi
+      context: ./mlapi
       dockerfile: Dockerfile
       args:
         version: 'master'
@@ -82,9 +108,9 @@ services:
       - ./.volumes/mlapi/unknown_faces:/mlapi/unknown_faces
       - mlapi-db:/mlapi/db
 
-  apache:
+  zmweb:
     build:
-      context: ./context/zoneminder/apache
+      context: ./zmweb
       args:
         zm_version: '1.34'
     image: zoneminder:1.34-apache
@@ -154,6 +180,6 @@ services:
 volumes:
   db:
   mlapi-db:
-  zm-es-push:
+  zmen-push:
   zm-run:
   zm-tmp:

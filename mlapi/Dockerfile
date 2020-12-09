@@ -18,7 +18,7 @@ RUN \
     # Install dependenceis
     apt-get install -y --no-install-recommends \
       build-essential \
-      git-core \
+      git \
       wget \
     && \
     # Install mlapi https://github.com/pliablepixels/mlapi
@@ -30,7 +30,7 @@ RUN \
     # Cleanup
     apt-get remove -y \
       build-essential \
-      git-core \
+      git \
       wget \
     && \
     apt-get autoremove -y && \

@@ -57,7 +57,7 @@ RUN \
       doxygen \
       ffmpeg \
       gfortran \
-      git-core \
+      git \
       libatlas-base-dev \
       libavcodec-dev \
       libavformat-dev \
