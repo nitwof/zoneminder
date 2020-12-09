@@ -1,0 +1,46 @@
+zoneminder:
+  zoneminder:1.34:
+    version: '1.34'
+    ffmpeg_version: 4.3-ubuntu1804
+  zoneimder:1.34-nvidia:
+    version: '1.34'
+    ffmpeg_version: 4.3-nvidia1804
+  zoneminder:1.34-vaapi:
+    version: '1.34'
+    ffmpeg_version: 4.3-vaapi1804
+
+zmweb:
+  zmweb:1.34:
+    zm_version: '1.34'
+
+zmeventnotification:
+  zmeventnotification:6.0.6-mlapi:
+    version: '6.0.6'
+    zm_version: '1.34'
+  zmeventnotification:6.0.6-zm1.34-mlapi:
+    version: '6.0.6'
+    zm_version: '1.34'
+  zmeventnotification:6.0.6:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cpu'
+  zmeventnotification:6.0.6-zm1.34:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cpu'
+  zmeventnotification:6.0.6-cuda11.1-cudnn8:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cuda11.1-cudnn8'
+  zmeventnotification:6.0.6-zm1.34-cuda11.1-cudnn8:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cuda11.1-cudnn8'
+
+mlapi:
+  mlapi:latest:
+    version: master
+    mlbase_version: 'cpu'
+  mlapi:cuda11.1-cudnn8:
+    version: master
+    mlbase_version: 'cuda11.1-cudnn8'

@@ -1,39 +1,185 @@
 version: '3'
 
 services:
-  app:
+  mlbase:
     build:
-      # context: ./build
-      context: ./build-es
-    # image: zoneminder:1.34
-    image: zoneminder-es:1.34-6.0.6
-    shm_size: '5gb'
+      context: ./mlbase
+      dockerfile: Dockerfile
+      args:
+        python_version: '3.8'
+        opencv_version: '4.5.0'
+        dlib_version: '19.21.1'
+    image: nitwof/mlbase
+
+  zm:
+    build:
+      context: ./zoneminder
+      args:
+        version: '1.34'
+        ffmpeg_version: 4.3-ubuntu1804
+    image: nitwof/zoneminder:1.34
+    ipc: service:shmem
     environment:
       TZ: 'Europe/Moscow'
+      ZM_DB_HOST: db
+      ZM_DB_NAME: zm
+      ZM_DB_USER: zmuser
+      ZM_DB_PASS: zmpass
     volumes:
-      - ./config/zm.conf:/etc/zm/conf.d/10-zm.conf:ro
-      - ./config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
-      - ./config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
-      - ./volumes/zm-data:/var/cache/zoneminder
-      - ./volumes/zm-logs:/var/log/zm
-      - ./volumes/zm-es-images:/var/lib/zmeventnotification/images
-      - ./volumes/zm-es-known-faces:/var/lib/zmeventnotification/known_faces
-      - ./volumes/zm-es-unknown-faces:/var/lib/zmeventnotification/unknown_faces
-      - zmes-push:/var/lib/zmeventnotification/push
+      - ./.volumes/zm/logs:/var/log/zm
+      - ./.volumes/zm/data:/var/cache/zoneminder
+      - zm-run:/var/run/zm
+      - zm-tmp:/tmp/zm
+    depends_on:
+      - shmem
+      - db
+
+  zmen:
+    build:
+      context: ./zmeventnotification
+      dockerfile: Dockerfile
+      args:
+        version: '6.0.6'
+        zm_version: '1.34'
+        mlbase_version: 'cpu'
+    image: nitwof/zmeventnotification:6.0.6
+    ipc: service:shmem
+    environment:
+      TZ: 'Europe/Moscow'
+      ZM_DB_HOST: db
+      ZM_DB_NAME: zm
+      ZM_DB_USER: zmuser
+      ZM_DB_PASS: zmpass
+    volumes:
+      # - ./.config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
+      # - ./.config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
+      - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
+      - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
+      - ./.volumes/zm/logs:/var/log/zm
+      - ./.volumes/zmen/images:/var/lib/zmeventnotification/images
+      - ./.volumes/zmen/known_faces:/var/lib/zmeventnotification/known_faces
+      - ./.volumes/zmen/unknown_faces:/var/lib/zmeventnotification/unknown_faces
+      - zmen-push:/var/lib/zmeventnotification/push
+    depends_on:
+      - shmem
+      - db
+
+  zmen-mlapi:
+    build:
+      context: ./zmeventnotification
+      dockerfile: mlapi/Dockerfile
+      args:
+        version: '6.0.6'
+        zm_version: '1.34'
+        python_version: '3.8'
+    image: nitwof/zmeventnotification:6.0.6-mlapi
+    ipc: service:shmem
+    environment:
+      TZ: 'Europe/Moscow'
+      ZM_DB_HOST: db
+      ZM_DB_NAME: zm
+      ZM_DB_USER: zmuser
+      ZM_DB_PASS: zmpass
+    volumes:
+      - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
+      - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
+      - ./.volumes/zm/logs:/var/log/zm
+      - ./.volumes/zmen/images:/var/lib/zmeventnotification/images
+      - zmen-push:/var/lib/zmeventnotification/push
+    depends_on:
+      - shmem
+      - db
+
+  mlapi:
+    build:
+      context: ./mlapi
+      dockerfile: Dockerfile
+      args:
+        version: 'master'
+        mlbase_version: 'cpu'
+    image: nitwof/mlapi:latest
+    environment:
+      MLAPI_USER: zmuser
+      MLAPI_PASSWORD: zmpass
+    volumes:
+      - ./.config/mlapiconfig.ini:/mlapi/mlapiconfig.ini:ro
+      - ./.volumes/mlapi/images:/mlapi/images
+      - ./.volumes/mlapi/known_faces:/mlapi/known_faces
+      - ./.volumes/mlapi/unknown_faces:/mlapi/unknown_faces
+      - mlapi-db:/mlapi/db
+
+  zmweb:
+    build:
+      context: ./zmweb
+      args:
+        zm_version: '1.34'
+    image: nitwof/zoneminder:1.34-apache
+    ipc: service:shmem
+    environment:
+      TZ: 'Europe/Moscow'
+      ZM_DB_HOST: db
+      ZM_DB_NAME: zm
+      ZM_DB_USER: zmuser
+      ZM_DB_PASS: zmpass
+    volumes:
+      - ./.volumes/zm/logs:/var/log/zm
+      - ./.volumes/zm/data:/var/cache/zoneminder
+      - zm-run:/var/run/zm
+      - zm-tmp:/tmp/zm
     ports:
       - '8080:80'
+    depends_on:
+      - shmem
+      - db
+
+  zmaudit:
+    image: nitwof/zoneminder:1.34
+    command: '/usr/bin/zmaudit.pl -c'
+    environment:
+      TZ: 'Europe/Moscow'
+      ZM_DB_HOST: db
+      ZM_DB_NAME: zm
+      ZM_DB_USER: zmuser
+      ZM_DB_PASS: zmpass
+    volumes:
+      - ./.volumes/zm/logs:/var/log/zm
+      - ./.volumes/zm/data:/var/cache/zoneminder
+      - zm-run:/var/run/zm
+      - zm-tmp:/tmp/zm
+    depends_on:
+      - shmem
+      - db
+
+  shmem:
+    image: alpine:3.12
+    command: sleep infinity
+    shm_size: '5gb'
+    ipc: shareable
+
+  logrotate:
+    image: blacklabelops/logrotate:1.3
+    environment:
+      TZ: 'Europe/Moscow'
+      LOGS_DIRECTORIES: '/var/log/zm'
+      LOGROTATE_COMPRESSION: compress
+      LOGROTATE_SIZE: 10M
+    volumes:
+      - ./.volumes/zm/logs:/var/log/zm
 
   db:
     image: mariadb:10.5
     environment:
       TZ: 'Europe/Moscow'
       MYSQL_ROOT_PASSWORD: 'root'
-      MYSQL_USER: 'zoneminder'
-      MYSQL_PASSWORD: 'zoneminder'
+      MYSQL_USER: 'zmuser'
+      MYSQL_PASSWORD: 'zmpass'
       MYSQL_DATABASE: 'zm'
     volumes:
       - db:/var/lib/mysql
 
 volumes:
-  zmes-push:
   db:
+  mlapi-db:
+  zmen-push:
+  zm-run:
+  zm-tmp:

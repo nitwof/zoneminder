@@ -1,8 +1,0 @@
-# Add ffmpeg ppa https://launchpad.net/~jonathonf/+archive/ubuntu/ffmpeg-4
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "F06FC659" && \
-export $(cat /etc/os-release | grep UBUNTU_CODENAME) && \
-echo "deb http://ppa.launchpad.net/jonathonf/ffmpeg-4/ubuntu ${UBUNTU_CODENAME} main" > \
-  /etc/apt/sources.list.d/ffmpeg.list && \
-echo "deb-src http://ppa.launchpad.net/jonathonf/ffmpeg-4/ubuntu ${UBUNTU_CODENAME} main" >> \
-  /etc/apt/sources.list.d/ffmpeg.list && \
-apt-get update && \
