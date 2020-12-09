@@ -1,8 +1,0 @@
-# Add php ppa https://launchpad.net/~ondrej/+archive/ubuntu/php
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "E5267A6C" && \
-export $(cat /etc/os-release | grep UBUNTU_CODENAME) && \
-echo "deb http://ppa.launchpad.net/ondrej/php/ubuntu ${UBUNTU_CODENAME} main" > \
-  /etc/apt/sources.list.d/php.list && \
-echo "deb-src http://ppa.launchpad.net/ondrej/php/ubuntu ${UBUNTU_CODENAME} main" >> \
-  /etc/apt/sources.list.d/php.list && \
-apt-get update && \

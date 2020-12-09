@@ -41,6 +41,7 @@ services:
       args:
         version: '6.0.6'
         zm_version: '1.34'
+        mlbase_version: 'cpu'
     image: zmeventnotification:6.0.6
     ipc: service:shmem
     environment:
@@ -52,6 +53,8 @@ services:
     volumes:
       - ./.config/zmeventnotification.ini:/etc/zm/zmeventnotification.ini:ro
       - ./.config/objectconfig.ini:/etc/zm/objectconfig.ini:ro
+      # - ./.config/zmeventnotification.mlapi.ini:/etc/zm/zmeventnotification.ini:ro
+      # - ./.config/objectconfig.mlapi.ini:/etc/zm/objectconfig.ini:ro
       - ./.volumes/zm/logs:/var/log/zm
       - ./.volumes/zmen/images:/var/lib/zmeventnotification/images
       - ./.volumes/zmen/known_faces:/var/lib/zmeventnotification/known_faces
@@ -67,6 +70,7 @@ services:
       dockerfile: Dockerfile
       args:
         version: 'master'
+        mlbase_version: 'cpu'
     image: mlapi:latest
     environment:
       MLAPI_USER: zmuser

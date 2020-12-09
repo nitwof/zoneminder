@@ -1,46 +1,46 @@
 zoneminder:
   zoneminder:1.34:
-    zm_version: '1.34'
+    version: '1.34'
     ffmpeg_version: 4.3-ubuntu1804
-  zoneimder:1.34-cuda:
-    zm_version: '1.34'
+  zoneimder:1.34-nvidia:
+    version: '1.34'
     ffmpeg_version: 4.3-nvidia1804
   zoneminder:1.34-vaapi:
-    zm_version: '1.34'
+    version: '1.34'
     ffmpeg_version: 4.3-vaapi1804
 
-apache:
-  zoneminder:1.34-apache:
+zmweb:
+  zmweb:1.34:
     zm_version: '1.34'
-  zoneminder:1.34-apache-cuda: # ???
-    zm_version: '1.34-cuda'
-  zoneminder:1.34-apache-vaapi: # ???
-    zm_version: '1.34-vaapi'
 
-es:
-  zoneminder:1.34-es6.0.6:
+zmeventnotification:
+  zmeventnotification:6.0.6-mlapi:
+    version: '6.0.6'
     zm_version: '1.34'
-    es_version: '6.0.6'
-  zoneminder:1.34-es6.0.6-cuda:
-    zm_version: '1.34-cuda'
-    es_version: '6.0.6'
-  zoneminder:1.34-es6.0.6-vaapi:
-    zm_version: '1.34-vaapi'
-    es_version: '6.0.6'
+  zmeventnotification:6.0.6-zm1.34-mlapi:
+    version: '6.0.6'
+    zm_version: '1.34'
+  zmeventnotification:6.0.6:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cpu'
+  zmeventnotification:6.0.6-zm1.34:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cpu'
+  zmeventnotification:6.0.6-cuda11.1-cudnn8:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cuda11.1-cudnn8'
+  zmeventnotification:6.0.6-zm1.34-cuda11.1-cudnn8:
+    version: '6.0.6'
+    zm_version: '1.34'
+    mlbase_version: 'cuda11.1-cudnn8'
 
 mlapi:
-  mlapi:
-    image: 'ubuntu16.04'
-    build_image: 'ubuntu16.04'
-    opencv_version: '4.5.0'
-    face_recogniton: '1.3.0'
-  mlapi:cuda9.1:
-    image: 'nvidia/cuda:9.1-runtime-ubuntu16.04'
-    build_image: 'nvidia/cuda:9.1-devel-ubuntu16.04'
-    opencv_version: '4.1.2'
-    face_recogniton: '1.3.0'
-  mlapi:cuda9.1-cudnn7:
-    image: 'nvidia/cuda:9.1-cudnn7-runtime-ubuntu16.04'
-    build_image: 'nvidia/cuda:9.1-cudnn7-devel-ubuntu16.04'
-    opencv_version: '4.1.2'
-    face_recogniton: '1.3.0'
+  mlapi:latest:
+    version: master
+    mlbase_version: 'cpu'
+  mlapi:cuda11.1-cudnn8:
+    version: master
+    mlbase_version: 'cuda11.1-cudnn8'
